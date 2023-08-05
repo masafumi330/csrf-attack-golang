@@ -11,65 +11,46 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"html"
-	"log"
+	"html/template"
+	"io"
 	"net/http"
-	"os"
-	"runtime/debug"
-	"strings"
+
+	"github.com/labstack/echo"
 )
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "usage: helloserver [options]\n")
-	flag.PrintDefaults()
-	os.Exit(2)
+type Template struct {
+	templates *template.Template
 }
 
-var (
-	greeting = flag.String("g", "Hello", "Greet with `greeting`")
-	addr     = flag.String("addr", "localhost:9999", "address to serve")
-)
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
+}
 
 func main() {
-	// Parse flags.
-	flag.Usage = usage
-	flag.Parse()
-
-	// Parse and validate arguments (none).
-	args := flag.Args()
-	if len(args) != 0 {
-		usage()
+	t := &Template{
+		templates: template.Must(template.ParseGlob("views/*.html")),
 	}
 
-	// Register handlers.
-	// All requests not otherwise mapped with go to greet.
-	// /version is mapped specifically to version.
-	http.HandleFunc("/", greet)
-	http.HandleFunc("/version", version)
+	e := echo.New()
+	e.Renderer = t
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Hello, World!")
+	})
+	e.GET("/login", getLogin)
+	e.GET("/comments", getComments)
+	e.POST("/comments", postComments)
 
-	log.Printf("serving http://%s\n", *addr)
-	log.Fatal(http.ListenAndServe(*addr, nil))
+	e.Logger.Fatal(e.Start(":1323"))
 }
 
-func version(w http.ResponseWriter, r *http.Request) {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		http.Error(w, "no build information available", 500)
-		return
-	}
-
-	fmt.Fprintf(w, "<!DOCTYPE html>\n<pre>\n")
-	fmt.Fprintf(w, "%s\n", html.EscapeString(info.String()))
+func getLogin(c echo.Context) error {
+	return c.Render(http.StatusOK, "login", "test")
 }
 
-func greet(w http.ResponseWriter, r *http.Request) {
-	name := strings.Trim(r.URL.Path, "/")
-	if name == "" {
-		name = "Gopher"
-	}
+func getComments(c echo.Context) error {
+	return c.Render(http.StatusOK, "comments", "test")
+}
 
-	fmt.Fprintf(w, "<!DOCTYPE html>\n")
-	fmt.Fprintf(w, "%s, %s!\n", *greeting, html.EscapeString(name))
+func postComments(c echo.Context) error {
+	return c.JSON(http.StatusOK, echo.Map{})
 }
