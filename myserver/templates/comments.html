@@ -1,5 +1,29 @@
 {{define "comments"}}
-<h1>これは投稿画面です。 {{.}} !</h1>
-
-<a href="/logout">Logout</a>
+ <!DOCTYPE html>
+<html>
+<head>
+    <title>My Go Website - Home</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/styles.css">
+</head>
+<body>
+  <div>
+    <h1>投稿一覧</h1>
+    {{ range . }}
+    <h2>{{- . }}</h2>
+    {{ end}}
+  </div>
+  <div>
+    <h1>投稿</h1>
+    	
+    <form action="/comments" method="POST">
+        <input type="text" id="message" name="message" size="30" />
+        <button type="submit">投稿</button>
+    </form>
+  </div>
+  
+  <div>
+    <a href="/logout">Logout</a>
+  </div>
+</body>
+</html>
 {{end}}

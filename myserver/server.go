@@ -14,6 +14,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
@@ -39,6 +40,27 @@ type User struct {
 var users = map[string]User{
 	"user1": {Username: "user1", Password: hashPassword("password1")},
 	"user2": {Username: "user2", Password: hashPassword("password2")},
+}
+
+type Comment struct {
+	Date    time.Time
+	Message string
+}
+
+// 投稿一覧を仮想的に保存するデータベース
+var comments = []Comment{
+	{
+		Date:    time.Date(2023, 8, 1, 10, 24, 59, 0, time.UTC),
+		Message: "こんにちは",
+	},
+	{
+		Date:    time.Date(2023, 8, 3, 13, 20, 59, 0, time.UTC),
+		Message: "おはよう",
+	},
+	{
+		Date:    time.Date(2023, 8, 5, 23, 34, 35, 0, time.UTC),
+		Message: "おやすみ",
+	},
 }
 
 // パスワードをハッシュ化する関数
@@ -72,7 +94,7 @@ func getLogin(c echo.Context) error {
 	session, _ := session.Get("session", c)
 	username := session.Values["username"]
 	if username != nil {
-		return c.Render(http.StatusOK, "comments", session)
+		return c.Render(http.StatusOK, "comments", "")
 	}
 
 	return c.Render(http.StatusOK, "login", "")
@@ -99,13 +121,19 @@ func getComments(c echo.Context) error {
 	session, _ := session.Get("session", c)
 	username := session.Values["username"]
 	if username == nil {
-		return c.Render(http.StatusOK, "login", session)
+		return c.Render(http.StatusOK, "login", "")
 	}
-	return c.Render(http.StatusOK, "comments", "test")
+	return c.Render(http.StatusOK, "comments", comments)
 }
 
 func postComments(c echo.Context) error {
-	return c.JSON(http.StatusOK, echo.Map{})
+	m := c.FormValue("message")
+	newComment := Comment{
+		Date:    time.Now(),
+		Message: m,
+	}
+	comments = append(comments, newComment)
+	return c.Render(http.StatusOK, "comments", comments)
 }
 
 func logout(c echo.Context) error {
