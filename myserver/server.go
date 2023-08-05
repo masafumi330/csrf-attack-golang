@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -55,22 +56,26 @@ func main() {
 	e.Renderer = t
 	e.Static("/static", "static")
 	e.Use(session.Middleware(sessions.NewCookieStore([]byte("secret"))))
+	e.Use(middleware.Logger())
 
 	// Routing
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello, World!")
-	})
 	e.GET("/login", getLogin)
 	e.POST("/login", postLogin)
 	e.GET("/comments", getComments)
 	e.POST("/comments", postComments)
+	e.GET("/logout", logout)
 
 	e.Logger.Fatal(e.Start(":1323"))
 }
 
 func getLogin(c echo.Context) error {
+	session, _ := session.Get("session", c)
+	username := session.Values["username"]
+	if username != nil {
+		return c.Render(http.StatusOK, "comments", session)
+	}
 
-	return c.Render(http.StatusOK, "login", "test")
+	return c.Render(http.StatusOK, "login", "")
 }
 
 func postLogin(c echo.Context) error {
@@ -84,14 +89,30 @@ func postLogin(c echo.Context) error {
 
 	session, _ := session.Get("session", c)
 	session.Values["username"] = username
-	session.Save(c.Request(), c.Response())
-	return c.JSON(http.StatusOK, "Logged in successfully")
+	if err := session.Save(c.Request(), c.Response()); err != nil {
+		return err
+	}
+	return c.Render(http.StatusOK, "comments", session)
 }
 
 func getComments(c echo.Context) error {
+	session, _ := session.Get("session", c)
+	username := session.Values["username"]
+	if username == nil {
+		return c.Render(http.StatusOK, "login", session)
+	}
 	return c.Render(http.StatusOK, "comments", "test")
 }
 
 func postComments(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{})
+}
+
+func logout(c echo.Context) error {
+	session, _ := session.Get("session", c)
+	session.Options.MaxAge = -1
+	if err := session.Save(c.Request(), c.Response()); err != nil {
+		return err
+	}
+	return c.Render(http.StatusOK, "login", "")
 }
